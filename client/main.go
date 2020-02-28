@@ -2,12 +2,16 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"flag"
 	"fmt"
 	"net/http"
 	"net/url"
 	"os"
+	"sync"
 	"time"
+
+	"golang.org/x/sync/semaphore"
 )
 
 const (
@@ -44,7 +48,48 @@ func main() {
 		},
 	}
 
-	benchmarkTransferNo(*threads, *duration)
+	benchmarkTransferNo2(*threads, *duration)
+}
+
+func benchmarkTransferNo2(threads, duration int) {
+
+	var sem = semaphore.NewWeighted(int64(threads))
+	var wg sync.WaitGroup
+	var successCount = 0
+	var mu sync.Mutex
+	var ctx = context.TODO()
+
+	startTime := time.Now()
+
+	for i := 0; i < 10009; i++ {
+		for j := 0; j < 10; j++ {
+			wg.Add(1)
+			go (func(currentI int) {
+				sem.Acquire(ctx, 1)
+				defer wg.Done()
+
+				params := []byte(fmt.Sprintf(
+					`
+				{
+					"data": "0"
+				}
+				`,
+				))
+				httpStatusCode, _ := transfer(serverURL, params)
+				sem.Release(1)
+
+				if httpStatusCode == http.StatusCreated {
+					mu.Lock()
+					successCount++
+					mu.Unlock()
+				}
+
+			})(j)
+		}
+	}
+
+	wg.Wait()
+	fmt.Printf("Done benchmarking. %d successful transfers. Took %v = %f TPS\n", successCount, 0, float64(successCount)/time.Since(startTime).Seconds())
 }
 
 func benchmarkTransferNo(threads, duration int) {
@@ -88,7 +133,6 @@ func benchmarkTransferNo(threads, duration int) {
 
 func forTransfer(outChan chan int) {
 	for {
-
 		params := []byte(fmt.Sprintf(
 			`
 			{
@@ -96,7 +140,6 @@ func forTransfer(outChan chan int) {
 			}
 			`,
 		))
-
 		httpStatusCode, _ := transfer(serverURL, params)
 		if httpStatusCode == http.StatusCreated {
 			outChan <- Add
@@ -105,7 +148,7 @@ func forTransfer(outChan chan int) {
 }
 
 func transfer(addr string, paramJSON []byte) (int, error) {
-	httpStatusCode, _, err := newHTTPRequest(
+	httpStatusCode, _, err := makePost(
 		addr,
 		"POST",
 		path,
@@ -142,5 +185,22 @@ func newHTTPRequest(apiAddr, method, path string, jsonBody []byte) (int, []byte,
 	// if err != nil {
 	// 	log.Fatal(err)
 	// }
+	return resp.StatusCode, nil, nil
+}
+
+func makePost(apiAddr, method, path string, jsonBody []byte) (int, []byte, error) {
+	var URL *url.URL
+	URL, err := url.Parse(apiAddr)
+	if err != nil {
+		panic("boom")
+	}
+	URL.Path += path
+	parameters := url.Values{}
+	URL.RawQuery = parameters.Encode()
+	encodedURL := URL.String()
+	resp, err := http.Post(encodedURL, "application/json", bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return 0, nil, err
+	}
 	return resp.StatusCode, nil, nil
 }
