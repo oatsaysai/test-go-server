@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -28,12 +26,20 @@ const (
 var serverURL = "http://localhost:8888"
 var path = "/test"
 
+var client *http.Client
+
 func main() {
 
 	var threads = flag.Int("threads", 10, "Threads: 0 for auto")
 	var duration = flag.Int("duration", 10, "Duration of the test")
 
 	flag.Parse()
+
+	client = &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
 
 	benchmarkTransferNo(*threads, *duration)
 }
@@ -124,19 +130,14 @@ func newHTTPRequest(apiAddr, method, path string, jsonBody []byte) (int, []byte,
 		return 0, nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	client := &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
-	}
 	resp, err := client.Do(req)
 	if err != nil {
 		return 0, nil, err
 	}
-	defer resp.Body.Close()
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return resp.StatusCode, bodyBytes, nil
+	// defer resp.Body.Close()
+	// bodyBytes, err := ioutil.ReadAll(resp.Body)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	return resp.StatusCode, nil, nil
 }
