@@ -36,6 +36,9 @@ func main() {
 	flag.Parse()
 
 	client = &http.Client{
+		Transport: &http.Transport{
+			MaxIdleConns: 100,
+		},
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
