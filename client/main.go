@@ -28,7 +28,7 @@ const (
 )
 
 var serverURL = "http://localhost:8888"
-var path = "/test"
+var path = "/test_call"
 
 var client *http.Client
 
@@ -48,7 +48,8 @@ func main() {
 		},
 	}
 
-	benchmarkTransferNo2(*threads, *duration)
+	benchmarkTransferNo(*threads, *duration)
+	// benchmarkTransferNo2(*threads, *duration)
 }
 
 func benchmarkTransferNo2(threads, duration int) {
