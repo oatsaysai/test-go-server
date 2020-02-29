@@ -7,6 +7,8 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+
+	"github.com/oatsaysai/test-go-server/webserver"
 )
 
 var port = 8888
@@ -17,6 +19,15 @@ var serverURL = "http://localhost:8888"
 var path = "/test"
 
 func main() {
+
+	// config := webserver.Default()
+
+	var s = webserver.NewServer(webserver.Default())
+
+	s.Run()
+}
+
+func main2() {
 
 	client = &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {

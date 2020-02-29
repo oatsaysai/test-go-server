@@ -28,7 +28,7 @@ const (
 )
 
 var serverURL = "http://localhost:8888"
-var path = "/test_call"
+var path = "/test"
 
 var client *http.Client
 
